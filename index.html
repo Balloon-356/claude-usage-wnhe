@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="300">
+<title>Claude Code 额度（本机）</title>
+<style>
+:root{color-scheme:light;--bg:#f4f3f0;--surface:#fcfcfb;--sunken:#f0efec;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;
+--line:#e6e4de;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--warn:#fab219;--crit:#d03b3b}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#121211;--surface:#1a1a19;--sunken:#232321;--text:#fff;
+--text2:#c3c2b7;--muted:#8d8c85;--line:#2e2e2b;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:15px;margin:0 0 12px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+h2 small{font-weight:400;color:var(--muted);font-size:12px}
+.meta{color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:12px}
+section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.range{position:sticky;top:0;z-index:5;padding:12px 16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--sunken);color:var(--text2);
+padding:5px 12px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--s1);border-color:var(--s1);color:#fff}
+.custom{display:none;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap;font-size:13px;color:var(--text2)}
+.custom.on{display:flex}
+.custom input{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text)}
+.rlabel{margin-top:8px;font-size:12px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.cards.old .card{opacity:.45}
+.card{background:var(--sunken);border-radius:10px;padding:12px 14px}
+.card.warn{outline:2px solid var(--crit)}
+.tl{color:var(--text2);font-size:12px}
+.tv{font-size:28px;font-weight:650;line-height:1.25;font-variant-numeric:tabular-nums}
+.ts{color:var(--muted);font-size:12px}
+.bar{height:6px;background:var(--line);border-radius:3px;margin:6px 0 8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--s1);border-radius:3px}
+.bar i.high{background:var(--warn)}.bar i.crit{background:var(--crit)}
+.stale{display:none;background:var(--crit);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text2);margin-bottom:8px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.chart{position:relative;min-height:200px}.chart svg{display:block}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+padding:6px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);display:none;white-space:nowrap;z-index:2}
+.note{color:var(--muted);font-size:12px;margin-top:10px}
+.empty{color:var(--muted);text-align:center}
+details{margin-top:12px;font-size:13px}summary{cursor:pointer;color:var(--text2)}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:500;font-size:12px}
+svg text{fill:var(--muted);font-size:11px}
+@media (max-width:600px){.tv{font-size:24px}section{padding:14px 12px}}
+</style></head><body><main>
+<h1>Claude Code 额度（本机）</h1>
+<div class="meta"><span>套餐：pro</span><span>最近查询 10-25 01:04（北京时间）</span><span>数据读取 10-25 01:04</span><span>页面生成 10-25 01:11</span></div>
+
+<section class="range">
+<div class="seg" id="seg">
+<button data-r="24h">24 小时</button><button data-r="today">今天</button><button data-r="3d">三天</button><button data-r="7d">七天</button>
+<button data-r="month">本月</button><button data-r="all">全部</button><button data-r="custom">自定义</button></div>
+<div class="custom" id="custom"><input type="date" id="from"><span>至</span><input type="date" id="to"></div>
+<div class="rlabel" id="rlabel"></div>
+</section>
+
+<section><h2>当前额度<small>最新一次快照，不随时间段变化</small></h2>
+<div class="stale" id="stale"></div><div class="cards" id="cards"><div class="card"><div class="tl">5 小时窗口</div><div class="tv">39%</div><div class="bar"><i class="" style="width:39%"></i></div><div class="ts">重置于 10-25 01:50 · 近 30 分钟 +0.0%/h</div></div><div class="card"><div class="tl">本周（全部模型）</div><div class="tv">16%</div><div class="bar"><i class="" style="width:16%"></i></div><div class="ts">重置于 10-27 04:00 · 近 6 小时 +0.7%/h</div></div></div></section>
+
+<section><h2>额度走势<small id="lines-sub">窗口重置处断开</small></h2>
+<div class="legend" id="lg"></div><div class="chart" id="chart"></div>
+<details><summary>数据表（所选时间段内最近 40 条）</summary><div id="tbl"></div></details>
+<div class="note">数据来自本机 Claude Code 的 /usage（订阅登录），只含一个账号的额度百分比，不含账号信息和项目明细。额度记录有间隔，相邻两次快照之间的线是直线连接，不代表中间的真实走势。页面每 5 分钟自动刷新，所选时间段保存在网址里。</div></section>
+
+<section><h2>本机用量<small id="bars-sub"></small></h2><div class="chart" id="bars"></div></section>
+</main>
+<script>
+const D = {"tzOff":28800,"snapTs":1792861445.9184184,"polledAt":1792861445.9184184,"staleAfter":2700,"keys":["5h","week:all models"],"labels":["5 小时窗口","本周（全部模型）"],"snaps":[[1792856007,[27.0,1792864200],[15.0,1793044800]],[1792857828,[31.0,1792864200],[15.0,1793044800]],[1792858431,[33.0,1792864200],[15.0,1793044800]],[1792859034,[34.0,1792864200],[16.0,1793044800]],[1792859637,[35.0,1792864200],[16.0,1793044800]],[1792860240,[39.0,1792864200],[16.0,1793044800]],[1792860842,[39.0,1792864200],[16.0,1793044800]],[1792861445,[39.0,1792864200],[16.0,1793044800]]],"bars":[[497900,0,0.0,3083393,1.6595],[497901,0,0.0,5115627,2.1212],[497916,0,0.0,240877,0.2942],[497919,0,0.0,1839868,1.0579],[497920,0,0.0,58397,0.1562],[497921,0,0.0,247335,0.1092],[497935,0,0.0,138733,0.1889],[497947,0,0.0,16737417,6.2045],[497948,0,0.0,6272000,3.3788],[497958,0,0.0,715302,1.0031],[497959,0,0.0,5399254,2.6336],[497994,1288894,0.8218,0,0.0],[498012,1138072,0.9866,0,0.0],[498013,3666860,2.7765,0,0.0],[498014,4654102,2.2226,0,0.0],[498015,3225175,1.7403,0,0.0],[498016,1542817,1.8166,0,0.0],[498017,86576,0.0133,0,0.0]]};
+const H = 3600, DAY = 86400, OFF = D.tzOff, NOW = Date.now() / 1000;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const loc = t => new Date((t + OFF) * 1000);  // read with getUTC* to get display-timezone fields
+const pad2 = n => String(n).padStart(2, '0');
+const fmtT = t => {const d = loc(t); return `${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;};
+const fmtD = t => {const d = loc(t); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;};
+const midnight = t => Math.floor((t + OFF) / DAY) * DAY - OFF;
+const parseD = s => {const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d) / 1000 - OFF;};
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e;}
+
+// stale banner: judged in the browser, so a page that stopped being updated says so
+(() => {
+  const age = NOW - D.polledAt;
+  if (age > D.staleAfter) {
+    const b = document.getElementById('stale');
+    b.style.display = 'block';
+    b.textContent = `⚠ 额度数据可能已过期：监控最近一次成功查询是 ${Math.round(age / 60)} 分钟前（${fmtT(D.polledAt)}），下面的数字不代表当前状态`;
+    document.getElementById('cards').classList.add('old');
+  }
+})();
+
+// ---------------------------------------------------------------- range state
+let R = {key: 'today', from: 0, to: 0};
+function resolve(key, f, t){
+  if (key === '24h') return [NOW - DAY, NOW];
+  if (key === 'today') return [midnight(NOW), NOW];
+  if (key === '3d') return [NOW - 3*DAY, NOW];
+  if (key === '7d') return [NOW - 7*DAY, NOW];
+  if (key === 'month') {const d = loc(NOW); return [Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)/1000 - OFF, NOW];}
+  if (key === 'all') return [Math.min(D.snaps[0][0], D.bars.length ? D.bars[0][0] * H : NOW), NOW];
+  let a = f ? parseD(f) : midnight(NOW), b = t ? parseD(t) + DAY : NOW;
+  if (b < a) [a, b] = [b - DAY, a + DAY];
+  return [a, Math.min(b, NOW)];
+}
+function setRange(key, f, t, push=true){
+  const [a, b] = resolve(key, f, t);
+  R = {key, from: a, to: b};
+  document.querySelectorAll('#seg button').forEach(x => x.classList.toggle('on', x.dataset.r === key));
+  document.getElementById('custom').classList.toggle('on', key === 'custom');
+  document.getElementById('from').value = fmtD(a);
+  document.getElementById('to').value = fmtD(Math.max(a, b - 1));
+  document.getElementById('rlabel').textContent = `统计区间：${fmtT(a)} 至 ${fmtT(b)}`;
+  if (push) {const h = key === 'custom' ? `r=${fmtD(a)}~${fmtD(Math.max(a, b - 1))}` : `r=${key}`; history.replaceState(null, '', '#' + h);}
+  draw();
+}
+function fromHash(){
+  const m = location.hash.match(/r=([^&]+)/);
+  if (!m) return setRange('24h', null, null, false);
+  const v = decodeURIComponent(m[1]);
+  if (v.includes('~')) {const [f, t] = v.split('~'); return setRange('custom', f, t, false);}
+  setRange(['24h','today','3d','7d','month','all'].includes(v) ? v : '24h', null, null, false);
+}
+
+// ---------------------------------------------------------------- chart
+function setup(id, h){const box=document.getElementById(id);box.innerHTML='';const W=box.clientWidth;
+  const svg=el('svg',{width:W,height:h,viewBox:`0 0 ${W} ${h}`},box);const tip=document.createElement('div');tip.className='tip';box.appendChild(tip);return {box,svg,tip,W};}
+function place(tip, box, ev){const r=box.getBoundingClientRect();tip.style.display='block';
+  const x=ev.clientX-r.left, y=ev.clientY-r.top, tw=tip.offsetWidth;
+  tip.style.left=Math.max(0,Math.min(box.clientWidth-tw, x+12 > box.clientWidth-tw ? x-tw-12 : x+12))+'px';tip.style.top=Math.max(0,y-40)+'px';}
+function xTicks(svg, x, W, L, R_, Hh, t0, t1){
+  const span = t1 - t0, hourly = span <= 2*DAY;
+  const fit = Math.max(1, Math.floor((W-L-R_)/56));
+  const step = hourly ? [1,2,3,4,6,8,12].map(h => h*H).find(s => span/s <= fit) || 12*H : DAY * Math.max(1, Math.ceil(span / DAY / fit));
+  let t = hourly ? Math.ceil((t0 + OFF) / step) * step - OFF : midnight(t0) + (midnight(t0) < t0 ? DAY : 0);
+  for (; t <= t1; t += step) {const d = loc(t);
+    el('text',{x:x(t),y:Hh-5,'text-anchor':'middle'},svg).textContent = hourly && d.getUTCHours() ? `${pad2(d.getUTCHours())}:00` : `${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;}
+}
+// polylines per key: split where the window resets, where a key is missing, or after a gap over 2 hours
+function pieces(i, snaps){
+  const out = []; let cur = null, lastT = 0, lastR = null;
+  for (const s of snaps) {const v = s[i+1];
+    if (!v) {cur = null; continue;}
+    if (!cur || v[1] !== lastR || s[0] - lastT > 2*H) {cur = []; out.push(cur);}
+    cur.push([s[0], v[0]]); lastT = s[0]; lastR = v[1];}
+  return out;
+}
+function lineChart(snaps){
+  const Hh = window.innerWidth < 600 ? 230 : 280, {box,svg,tip,W} = setup('chart', Hh), L = 40, R_ = 12, T = 10, B = 22;
+  // history only exists since monitoring started: don't stretch the axis over empty days
+  const first = D.snaps[0][0], t1 = R.to, t0 = Math.min(Math.max(R.from, first - H), t1 - H);
+  document.getElementById('lines-sub').textContent = R.from < first - H ? `额度记录始于 ${fmtT(first)}，窗口重置处断开` : '窗口重置处断开';
+  const x = t => L + (t - t0) / Math.max(1, t1 - t0) * (W - L - R_), y = p => T + (1 - p / 100) * (Hh - T - B);
+  for (const p of [0, 25, 50, 75, 100]) {el('line',{x1:L,x2:W-R_,y1:y(p),y2:y(p),stroke:css('--line'),'stroke-width':1},svg);
+    el('text',{x:L-6,y:y(p)+4,'text-anchor':'end'},svg).textContent = p + '%';}
+  xTicks(svg, x, W, L, R_, Hh, t0, t1);
+  const lg = document.getElementById('lg'); lg.innerHTML = '';
+  D.keys.forEach((k, i) => {
+    const col = `var(--s${i+1})`;
+    lg.insertAdjacentHTML('beforeend', `<span><i style="background:${col}"></i>${D.labels[i]}</span>`);
+    const ps = pieces(i, snaps);
+    for (const p of ps) {
+      if (p.length > 1) el('polyline',{points:p.map(([t,v]) => `${x(t).toFixed(1)},${y(v).toFixed(1)}`).join(' '),fill:'none',stroke:col,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'},svg);
+    }
+    const last = ps.length ? ps[ps.length-1][ps[ps.length-1].length-1] : null;  // latest point: 8 px marker with a surface ring
+    for (const p of ps) if (p.length === 1) el('circle',{cx:x(p[0][0]),cy:y(p[0][1]),r:3,fill:col},svg);
+    if (last) el('circle',{cx:x(last[0]),cy:y(last[1]),r:4,fill:col,stroke:css('--surface'),'stroke-width':2},svg);
+  });
+  if (!snaps.length) {el('text',{x:W/2,y:Hh/2,'text-anchor':'middle'},svg).textContent = '所选时间段内没有额度记录'; return;}
+  const cross = el('line',{y1:T,y2:Hh-B,stroke:css('--muted'),'stroke-width':1,'stroke-dasharray':'3 3',visibility:'hidden'},svg);
+  const hit = el('rect',{x:L,y:T,width:W-L-R_,height:Hh-T-B,fill:'transparent'},svg);
+  const move = ev => {const r = svg.getBoundingClientRect(), t = t0 + ((ev.clientX - r.left) - L) / (W - L - R_) * (t1 - t0);
+    let best = snaps[0]; for (const s of snaps) if (Math.abs(s[0] - t) < Math.abs(best[0] - t)) best = s;
+    cross.setAttribute('x1', x(best[0])); cross.setAttribute('x2', x(best[0])); cross.setAttribute('visibility', 'visible');
+    tip.innerHTML = `<b>${fmtT(best[0])}</b><br>` + D.keys.map((k, i) => best[i+1] ? `<span style="color:var(--s${i+1})">■</span> ${D.labels[i]}　<b>${best[i+1][0]}%</b>` : '').filter(Boolean).join('<br>');
+    place(tip, box, ev);};
+  hit.addEventListener('mousemove', move);
+  hit.addEventListener('touchstart', e => move(e.touches[0]), {passive: true});
+  hit.addEventListener('touchmove', e => move(e.touches[0]), {passive: true});
+  hit.addEventListener('mouseleave', () => {tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden');});
+}
+const fmtN = n => n >= 1e8 ? (n/1e8).toFixed(2)+'亿' : n >= 1e4 ? (n/1e4).toFixed(n >= 1e6 ? 0 : 1)+'万' : Math.round(n)+'';
+const usd = x => '$' + x.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+// bars: [hour, mine tokens, mine USD, other tokens, other USD]; blue = mine, orange = other (no legend by request)
+function barChart(){
+  const span = R.to - R.from, size = span <= 3.5*DAY ? H : DAY;
+  document.getElementById('bars-sub').textContent = `${size === H ? '每小时' : '每天'} token 总量`;
+  const start = size === H ? Math.floor(R.from/H)*H : midnight(R.from), n = Math.max(1, Math.ceil((R.to - start)/size));
+  const bars = Array.from({length: n}, (_, i) => ({t: start + i*size, me: 0, other: 0, meUsd: 0, otherUsd: 0}));
+  for (const r of D.bars) {const i = Math.floor((r[0]*H - start)/size); if (i < 0 || i >= n) continue;
+    const b = bars[i]; b.me += r[1]; b.meUsd += r[2]; b.other += r[3]; b.otherUsd += r[4];}
+  const Hh = window.innerWidth < 600 ? 180 : 220, {box,svg,tip,W} = setup('bars', Hh), L = 52, R_ = 12, T = 10, B = 22;
+  const max = Math.max(1, ...bars.map(b => b.me + b.other)), bw = (W - L - R_) / n, y = v => T + (1 - v/max) * (Hh - T - B);
+  for (const f of [0, .5, 1]) {el('line',{x1:L,x2:W-R_,y1:y(max*f),y2:y(max*f),stroke:css('--line'),'stroke-width':1},svg);
+    el('text',{x:L-6,y:y(max*f)+4,'text-anchor':'end'},svg).textContent = fmtN(max*f);}
+  xTicks(svg, t => L + (t - start)/(n*size)*(W-L-R_) + bw/2, W, L, R_, Hh, start, start + (n-1)*size);
+  bars.forEach((b, i) => {const gap = Math.min(2, bw*.15), x0 = L + i*bw + gap, w = Math.max(1, bw - 2*gap);
+    const hMe = (Hh-T-B)*b.me/max, hOt = (Hh-T-B)*b.other/max, base = Hh - B;
+    if (hMe > 0) el('rect',{x:x0,y:base-hMe,width:w,height:hMe,rx:Math.min(2,w/2),fill:'var(--s1)'},svg);
+    if (hOt > 0) el('rect',{x:x0,y:base-hMe-hOt-(hMe>0?2:0),width:w,height:hOt,rx:Math.min(2,w/2),fill:'var(--s2)'},svg);
+    const hit = el('rect',{x:L+i*bw,y:T,width:bw,height:Hh-T-B,fill:'transparent'},svg);
+    const lab = size === H ? `${fmtT(b.t).slice(0, 8)}:00` : fmtD(b.t);
+    const move = ev => {tip.innerHTML = `<b>${lab}</b><br><span style="color:var(--s1)">■</span> <b>${fmtN(b.me)}</b> token · ${usd(b.meUsd)}<br><span style="color:var(--s2)">■</span> <b>${fmtN(b.other)}</b> token · ${usd(b.otherUsd)}`; place(tip, box, ev);};
+    hit.addEventListener('mousemove', move);
+    hit.addEventListener('touchstart', e => move(e.touches[0]), {passive: true});
+    hit.addEventListener('mouseleave', () => tip.style.display = 'none');});
+}
+function dataTable(snaps){
+  const rows = snaps.slice(-40).reverse().map(s => `<tr><td>${fmtT(s[0])}</td>` + D.keys.map((k, i) => `<td>${s[i+1] ? s[i+1][0] + '%' : '–'}</td>`).join('') + '</tr>').join('');
+  document.getElementById('tbl').innerHTML = `<table><thead><tr><th>时间</th>${D.labels.map(l => `<th>${l}</th>`).join('')}</tr></thead><tbody>${rows || '<tr><td colspan="9" class="empty">所选时间段内没有数据</td></tr>'}</tbody></table>`;
+}
+function draw(){
+  const snaps = D.snaps.filter(s => s[0] >= R.from - H && s[0] <= R.to);
+  lineChart(snaps); barChart(); dataTable(snaps.filter(s => s[0] >= R.from));
+}
+
+document.querySelectorAll('#seg button').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.r === 'custom') setRange('custom', document.getElementById('from').value, document.getElementById('to').value);
+  else setRange(b.dataset.r);
+}));
+for (const id of ['from', 'to']) document.getElementById(id).addEventListener('change', () =>
+  setRange('custom', document.getElementById('from').value, document.getElementById('to').value));
+window.addEventListener('hashchange', fromHash);
+let rt; window.addEventListener('resize', () => {clearTimeout(rt); rt = setTimeout(draw, 150);});
+fromHash();
+</script></body></html>
